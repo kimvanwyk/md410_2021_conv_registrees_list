@@ -6,6 +6,7 @@ __author__ = "Kim van Wyk"
 __version__ = "0.0.1"
 
 from collections import namedtuple
+from datetime import datetime
 
 from openpyxl import Workbook
 from openpyxl.styles.borders import Border, Side
@@ -19,7 +20,7 @@ COLUMN = namedtuple("COLUMN", ("title", "width", "column_name"))
 
 TITLE_HEIGHT = 40
 NORMAL_HEIGHT = 25
-ROWS_PER_PAGE = 31
+ROWS_PER_PAGE = 29
 BOLD = Font(name="Arial", bold=True)
 CENTRE = Alignment(horizontal="center", vertical="center")
 COLUMNS = [
@@ -28,18 +29,22 @@ COLUMNS = [
     COLUMN("Status", 15, "C"),
     COLUMN("Signature – registered\nand gift bag received\n(if applicable)", 35, "D"),
 ]
-
+NOW = datetime.now()
 
 wb = Workbook()
 dest_filename = "registrees_list.xlsx"
 
 
-def write_sheet(sheet, registrees):
+def write_sheet(sheet, title, registrees):
     sheet.page_setup.paperSize = sheet.PAPERSIZE_A4
-    sheet.page_margins.top = 0.2
+    sheet.page_margins.top = 0.8
     sheet.page_margins.bottom = 0.2
     sheet.page_margins.left = 0.2
     sheet.page_margins.right = 0.2
+
+    sheet.oddHeader.center.text = f"Registrees {title} as of {NOW:%d/%m/%Y %H:%M}"
+    sheet.oddHeader.center.size = 12
+    sheet.oddHeader.center.font = "Arial,Bold"
 
     for column in COLUMNS:
         sheet.column_dimensions[column.column_name].width = column.width
@@ -66,13 +71,15 @@ dbh = db.DB()
 registrees = dbh.get_all_registrees()
 
 sheet = wb.active
-sheet.title = "By Name"
+title = "By Name"
+sheet.title = title
 registrees.sort(key=lambda x: f"{x.last_name}, {x.first_names}")
-write_sheet(sheet, registrees)
+write_sheet(sheet, title, registrees)
 
-sheet = wb.create_sheet("By Reg Num")
+title = "By Reg Num"
+sheet = wb.create_sheet(title)
 registrees.sort(key=lambda x: x.reg_num)
-write_sheet(sheet, registrees)
+write_sheet(sheet, title, registrees)
 
 wb.save(filename=dest_filename)
 
