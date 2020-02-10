@@ -6,10 +6,13 @@ __author__ = "Kim van Wyk"
 __version__ = "0.0.1"
 
 from collections import namedtuple
+
 from openpyxl import Workbook
 from openpyxl.styles.borders import Border, Side
 from openpyxl.styles import Alignment
 from openpyxl.styles import Font
+from md410_2020_conv_common import db
+
 
 THIN_BORDER = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
 COLUMN = namedtuple("COLUMN", ("title", "width", "column_name"))
@@ -26,33 +29,50 @@ COLUMNS = [
     COLUMN("Signature – registered\nand gift bag received\n(if applicable)", 35, "D"),
 ]
 
+
 wb = Workbook()
-
 dest_filename = "registrees_list.xlsx"
-ws1 = wb.active
-ws1.title = "By Name"
-ws1.page_setup.paperSize = ws1.PAPERSIZE_A4
-ws1.page_margins.top = 0.2
-ws1.page_margins.bottom = 0.2
-ws1.page_margins.left = 0.2
-ws1.page_margins.right = 0.2
 
-for column in COLUMNS:
-    ws1.column_dimensions[column.column_name].width = column.width
-row = 1
-while row < 40:
-    if not ((row - 1) % ROWS_PER_PAGE):
+
+def write_sheet(sheet, registrees):
+    sheet.page_setup.paperSize = sheet.PAPERSIZE_A4
+    sheet.page_margins.top = 0.2
+    sheet.page_margins.bottom = 0.2
+    sheet.page_margins.left = 0.2
+    sheet.page_margins.right = 0.2
+
+    for column in COLUMNS:
+        sheet.column_dimensions[column.column_name].width = column.width
+    row = 1
+
+    for registree in registrees:
+        if not ((row - 1) % ROWS_PER_PAGE):
+            for column in COLUMNS:
+                sheet[f"{column.column_name}{row}"] = column.title
+                sheet[f"{column.column_name}{row}"].font = BOLD
+                sheet[f"{column.column_name}{row}"].alignment = CENTRE
+                sheet[f"{column.column_name}{row}"].border = THIN_BORDER
+            sheet.row_dimensions[row].height = TITLE_HEIGHT
+            row += 1
         for column in COLUMNS:
-            ws1[f"{column.column_name}{row}"] = column.title
-            ws1[f"{column.column_name}{row}"].font = BOLD
-            ws1[f"{column.column_name}{row}"].alignment = CENTRE
-            ws1[f"{column.column_name}{row}"].border = THIN_BORDER
-        ws1.row_dimensions[row].height = TITLE_HEIGHT
-    else:
-        for column in COLUMNS:
-            ws1[f"{column.column_name}{row}"].border = THIN_BORDER
-        ws1.row_dimensions[row].height = NORMAL_HEIGHT
-    row += 1
+            sheet[f"{column.column_name}{row}"].border = THIN_BORDER
+        sheet.row_dimensions[row].height = NORMAL_HEIGHT
+        sheet[f"A{row}"] = f"{registree.last_name}, {registree.first_names}"
+        sheet[f"B{row}"] = f"{registree.reg_num:03}"
+        row += 1
+
+
+dbh = db.DB()
+registrees = dbh.get_all_registrees()
+
+sheet = wb.active
+sheet.title = "By Name"
+registrees.sort(key=lambda x: f"{x.last_name}, {x.first_names}")
+write_sheet(sheet, registrees)
+
+sheet = wb.create_sheet("By Reg Num")
+registrees.sort(key=lambda x: x.reg_num)
+write_sheet(sheet, registrees)
 
 wb.save(filename=dest_filename)
 
